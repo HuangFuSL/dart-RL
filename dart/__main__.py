@@ -81,10 +81,14 @@ class Config():
         if result.device is None:
             if torch.cuda.is_available():
                 result.device = 'cuda'
-            elif torch.mps.is_available():
-                result.device = 'mps'
             else:
-                result.device = 'cpu'
+                try:
+                    if torch.mps.is_available():
+                        result.device = 'mps'
+                    else:
+                        result.device = 'cpu'
+                except AttributeError:
+                    result.device = 'cpu'
         result.check_args()
         return result
 
@@ -124,8 +128,12 @@ class Config():
             raise ValueError('Device should be cpu, cuda or mps')
         if not torch.cuda.is_available() and self.device == 'cuda':
             raise ValueError('CUDA is not available')
-        if not torch.mps.is_available() and self.device == 'mps':
-            raise ValueError('MPS is not available')
+        try:
+            if not torch.mps.is_available() and self.device == 'mps':
+                raise ValueError('MPS is not available')
+        except AttributeError:
+            if self.device == 'mps':
+                raise ValueError('MPS is not available')
         # 5. method should be value or policy
         if self.method not in ['value', 'policy']:
             raise ValueError('Method should be value or policy')
