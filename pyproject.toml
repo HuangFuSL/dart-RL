@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "dart-RL"
+version = "0.1.0"
+description = "Solve Dart problem using RL"
+authors = ["HuangFuSL <huangfusl@outlook.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+numpy = "^2.2.4"
+scipy = "^1.15.2"
+pandas = "^2.2.3"
+matplotlib = "^3.10.1"
+torch = "^2.6.0"
+tqdm = "^4.67.1"
+pyyaml = "^6.0.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
