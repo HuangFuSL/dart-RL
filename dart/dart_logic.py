@@ -607,7 +607,7 @@ def complex_action_space():
 def middle_action_space():
     # 7x7 in x, y [-16, 16] Square
     yield from (
-        Action(-16 + 3 * x, -16 + 3 * y)
+        Action(-16 + 32 / 6 * x, -16 + 32 / 6 * y)
         for x, y in itertools.product(range(7), range(7))
     )
     # for r in [100, 103, 106, 163, 166, 169], 60 equally distributed dots
