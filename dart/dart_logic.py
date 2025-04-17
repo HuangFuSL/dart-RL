@@ -41,7 +41,6 @@ class Termination(enum.Enum):
     Enum for termination states.
     '''
     WIN = 0  # Winning state
-    LOSE = 1  # Losing state that can never win
 
 
 @dataclasses.dataclass(frozen=True)
@@ -371,7 +370,7 @@ class NoTurnDartEnvironment(BaseDartEnvironment[NoTurnState | Termination]):
 
         if state.s_score > score:  # New round
             if state.s_score - score == 1:
-                return Termination.LOSE
+                return NoTurnState(state.s_score)
 
             return NoTurnState(state.s_score - score)
 
@@ -541,7 +540,8 @@ class TurnDartEnvironment(BaseDartEnvironment[TurnState | Termination]):
 
         if state.c_score > score and state.throws == 2:  # New round
             if state.c_score - score == 1:
-                return Termination.LOSE
+                # Bust
+                return TurnState(state.s_score, state.s_score, 0)
 
             return TurnState(
                 state.c_score - score, state.c_score - score, 0
