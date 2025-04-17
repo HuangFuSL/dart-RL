@@ -1,0 +1,11 @@
+start_score: 501
+action_space: middle
+turns: 3
+SigmaR1: 784
+SigmaR2: 49
+SigmaTheta: 60
+device: 'mps'
+
+method: 'value'
+
+replay: true

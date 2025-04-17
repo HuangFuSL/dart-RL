@@ -1,0 +1,12 @@
+start_score: 501
+action_space: middle
+turns: 1
+Sigma11: 49.60
+Sigma12: -0.46
+Sigma22: 69.17
+device: 'mps'
+eps: 0.0000001
+
+method: 'policy'
+
+replay: true
