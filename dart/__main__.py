@@ -30,7 +30,7 @@ class Config():
     SigmaR2: float | None = None
     SigmaTheta: float | None = None
 
-    device: str = 'cpu' # use mps or cuda to accelerate
+    device: str | None = None # use mps or cuda to accelerate
 
     # Agent
     method: str = 'value' # value or policy iteration
@@ -61,7 +61,7 @@ class Config():
         parser.add_argument('--SigmaR1', type=float, default=None, help='Sigma R1')
         parser.add_argument('--SigmaR2', type=float, default=None, help='Sigma R2')
         parser.add_argument('--SigmaTheta', type=float, default=None, help='Sigma Theta')
-        parser.add_argument('--device', type=str, default='cpu', help='Device to use (cpu, cuda, mps)')
+        parser.add_argument('--device', type=str, default=None, help='Device to use (cpu, cuda, mps)')
         parser.add_argument('--method', type=str, default='value', help='Method to use (value, policy)')
         parser.add_argument('--eps', type=float, default=1e-6, help='Epsilon for convergence')
         parser.add_argument('--discount', type=float, default=0.99, help='Discount factor')
@@ -78,6 +78,13 @@ class Config():
             with open(args.config, 'r') as f:
                 config = yaml.safe_load(f)
             result = cls(**config)
+        if result.device is None:
+            if torch.cuda.is_available():
+                result.device = 'cuda'
+            elif torch.mps.is_available():
+                result.device = 'mps'
+            else:
+                result.device = 'cpu'
         result.check_args()
         return result
 
