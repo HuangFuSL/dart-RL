@@ -142,10 +142,10 @@ class PolicyIterationAgent(BaseDartAgent[StateType]):
         new_state_values = state_values.clone()
         new_state_values[self.env.get_state(Termination.WIN)] = 0.0
 
-        state_outcomes = action_to_outcome[self.policy] # (num_outcomes)
+        state_outcomes = action_to_outcome[self.policy] # (num_states, num_outcomes)
         next_state_values = self.discount * torch.einsum(
-            'j,ij->i',
-            state_outcomes, # (num_outcomes)
+            'ij,ij->i',
+            state_outcomes, # (num_states, num_outcomes)
             new_state_values[outcome_to_state] # (num_states, num_outcomes)
         )
         self.state_values = step_cost[torch.arange(self.env.num_states), self.policy] + next_state_values
