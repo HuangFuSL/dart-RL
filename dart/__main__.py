@@ -2,6 +2,7 @@ import argparse
 import dataclasses
 import logging
 import time
+from typing import Any, Dict, List
 
 import numpy as np
 import torch
@@ -9,7 +10,8 @@ import yaml
 
 from .agents import PolicyIterationAgent, ValueIterationAgent
 from .dart_logic import NoTurnDartEnvironment, TurnDartEnvironment
-from .dart_logic import complex_action_space, middle_action_space, simple_action_space
+from .action_space import complex_action_space, middle_action_space, simple_action_space
+from .action_space import RingActionSpace, GridActionSpace, DotActionSpace
 from .display import DartDisplay
 
 
@@ -17,7 +19,7 @@ from .display import DartDisplay
 class Config():
     # Environment
     start_score: int = 501
-    action_space: str = 'simple' # Simple means 62, Complex means 921
+    action_space: str | List[Dict[str, Any]] = 'simple'
     turns: int = 1 # 1 means no turn
 
     # Sigma - 1
@@ -92,6 +94,27 @@ class Config():
         result.check_args()
         return result
 
+    def all_actions(self):
+        if config.action_space == 'simple':
+            yield from simple_action_space()
+        elif config.action_space == 'middle':
+            yield from middle_action_space()
+        elif config.action_space == 'complex':
+            yield from complex_action_space()
+        else:
+            assert isinstance(self.action_space, list)
+            for action in self.action_space:
+                type_ = action['type']
+                del action['type']
+                if type_ == 'ring':
+                    yield from RingActionSpace(**action)
+                elif type_ == 'grid':
+                    yield from GridActionSpace(**action)
+                elif type_ == 'dot':
+                    yield from DotActionSpace(**action)
+                else:
+                    raise ValueError(f'Unknown action space type: {type_}')
+
     @property
     def Sigma(self):
         if all(x is not None for x in [self.Sigma11, self.Sigma22, self.Sigma12]):
@@ -150,7 +173,8 @@ class Config():
         if self.log_level not in log_levels:
             raise ValueError(f'Log level should be one of {log_levels}')
         # 9. Action space should be 'simple', 'middle' or 'complex'
-        if self.action_space not in ['simple', 'middle', 'complex']:
+        if isinstance(self.action_space, str) and \
+            self.action_space not in ['simple', 'middle', 'complex']:
             raise ValueError('Action space should be simple, middle or complex')
 
 
@@ -160,12 +184,7 @@ def main(config: Config):
         'Sigma': config.Sigma,
         'device': config.device
     }
-    if config.action_space == 'simple':
-        env_kwargs['action_space'] = simple_action_space()
-    elif config.action_space == 'middle':
-        env_kwargs['action_space'] = middle_action_space()
-    elif config.action_space == 'complex':
-        env_kwargs['action_space'] = complex_action_space()
+    env_kwargs['action_space'] = config.all_actions()
 
     if config.turns > 1:
         env = TurnDartEnvironment(num_throws=config.turns, **env_kwargs)

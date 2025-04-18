@@ -2,7 +2,6 @@ import abc
 import dataclasses
 import enum
 import functools
-import itertools
 import logging
 import math
 from typing import Callable, Generator, Generic, Iterable, List, Tuple
@@ -599,55 +598,3 @@ class TurnDartEnvironment(BaseDartEnvironment[TurnState | Termination]):
 
             next_state = self.outcome_to_state(state, outcome)
             state = next_state
-
-
-def complex_action_space():
-    # 9x9 in x, y [-16, 16] Square
-    yield from (
-        Action(-16 + 4 * x, -16 + 4 * y)
-        for x, y in itertools.product(range(9), range(9))
-    )
-    # for r in [100, 103, 106, 163, 166, 169], 120 equally distributed dots
-    yield from (
-        Action.polar_to_action(r, theta=theta / 360 * (math.pi * 2))
-        for r, theta in itertools.product(
-            [100, 103, 106, 163, 166, 169],
-            range(0, 360, 3)
-        )
-    )
-    # for r in [58, 135], 60 equally distributed dots
-    yield from (
-        Action.polar_to_action(r, theta=theta / 360 * (math.pi * 2))
-        for r, theta in itertools.product([58, 135], range(0, 360, 6))
-    )
-
-    # Totally 921 actions
-
-def middle_action_space():
-    # 7x7 in x, y [-16, 16] Square
-    yield from (
-        Action(-16 + 32 / 6 * x, -16 + 32 / 6 * y)
-        for x, y in itertools.product(range(7), range(7))
-    )
-    # for r in [100, 103, 106, 163, 166, 169], 60 equally distributed dots
-    yield from (
-        Action.polar_to_action(r, theta=theta / 360 * (math.pi * 2))
-        for r, theta in itertools.product(
-            [100, 103, 106, 163, 166, 169],
-            range(0, 360, 6)
-        )
-    )
-    # for r in [58, 135], 60 equally distributed dots
-    yield from (
-        Action.polar_to_action(r, theta=theta / 360 * (math.pi * 2))
-        for r, theta in itertools.product([58, 135], range(0, 360, 6))
-    )
-
-    # Totally 529 states
-
-def simple_action_space():
-    yield from (
-        Action.region_to_action(x, y) for x, y in ALL_SECTORS
-    )
-
-    # Totally 62 states
