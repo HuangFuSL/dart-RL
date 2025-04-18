@@ -81,9 +81,3 @@ action_space:
     x: 170
     y: 170
 ```
-
-## Known Issues
-
-- The iteration loop uses full matrix to utilize matrix operations.
-    - The state - action - outcome matrix will consume a lot of memory (~8GB when the action space is `complex`, starting score is 501 and turns is 3).
-    - When using MPS backend on macOS and the action is large, issues may arise. Check out the [GitHub Issue](https://github.com/pytorch/pytorch/issues/124335) for more details.
