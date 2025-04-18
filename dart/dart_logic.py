@@ -201,7 +201,7 @@ class BaseDartEnvironment(BaseEnvironment[StateType | Termination, Action, Outco
 
         Returns:
         - np.ndarray
-            A 3D array with shape (num_states, num_actions, num_outcomes).
+            A 2D array with shape (num_actions, num_outcomes).
         '''
         logging.info('Building action to outcome matrix')
 
@@ -209,29 +209,15 @@ class BaseDartEnvironment(BaseEnvironment[StateType | Termination, Action, Outco
 
         # This fails with start_score = 501 and action_space = complex
         result = np.zeros(
-            (self.num_states, self.num_actions, self.num_outcomes),
+            (self.num_actions, self.num_outcomes),
             dtype=np.float16
         )
-
-        # Due to the known bug in torch MPS backed we need to directly allocate
-        # the tensor on the device
-        # Data corrupted when transferring over 4GiB to MPS
-        # https://github.com/pytorch/pytorch/issues/124335
-        # However, if start_score = 401 or 301, reports
-        # /AppleInternal/Library/BuildRoots/01adf19d-fba1-11ef-a947-f2a857e00a32/Library/Caches/com.apple.xbs/Sources/MetalPerformanceShaders/MPSCore/Types/MPSNDArray.mm:829: failed assertion `[MPSNDArray initWithDevice:descriptor:isTextureBacked:] Error: NDArray dimension length > INT_MAX'
-        # Also, when start_score = 501, the value iteration result is not correct
-        #
-        # result = torch.zeros(
-        #     (self.num_states, self.num_actions, self.num_outcomes),
-        #     dtype=torch.float16, device=self.device
-        # )
 
         for j in tqdm.trange(self.num_actions):
             # Since for all non-termination states
             # the outcome only depends on action, we can accelerate it
             action = self.get_action(j)
 
-            termination = self.action_to_outcome(Termination.WIN, action)
             for i in range(self.num_states):
                 state = self.get_state(i)
                 if isinstance(state, Termination):
@@ -241,17 +227,36 @@ class BaseDartEnvironment(BaseEnvironment[StateType | Termination, Action, Outco
 
             for outcome, prob in non_termination:
                 outcome_idx = self.get_outcome(outcome)
-                result[np.arange(self.num_states), j, outcome_idx] += prob
-                # result[torch.arange(self.num_states), j, outcome_idx] += prob
-            for state in Termination.__members__.values():
-                state_id = self.get_state(state)
-                for outcome, prob in termination:
-                    outcome_idx = self.get_outcome(outcome)
-                    result[state_id, j, outcome_idx] += prob
+                result[j, outcome_idx] += prob
 
         logging.info(f'Action to outcome matrix: {result.nbytes / (2 ** 20):.2f} MB')
         return torch.from_numpy(result).to(self.device)
         # return result
+
+    @property
+    @functools.lru_cache()
+    def action_cost_np(self) -> torch.Tensor:
+        '''
+        Build a cost matrix for all actions under all states.
+
+        Returns:
+        - np.ndarray
+            A 2D array with shape (num_states, num_actions).
+        '''
+        logging.info('Building action cost matrix')
+        result = np.full(
+            (self.num_states, self.num_actions), -1,
+            dtype=np.int8
+        )
+        for i in range(self.num_states):
+            state = self.get_state(i)
+            for j in range(self.num_actions):
+                action = self.get_action(j)
+                cost = self.action_cost(state, action)
+                result[i] = cost
+                break
+        logging.info(f'Action cost matrix: {result.nbytes / (2 ** 20):.2f} MB')
+        return torch.from_numpy(result).to(self.device)
 
     def replay_show(
         self, display: DartDisplay, score: int, action: Action | int,

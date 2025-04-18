@@ -87,7 +87,7 @@ class ValueIterationAgent(BaseDartAgent[StateType]):
         delta = 0
         step_cost = self.env.action_cost_np # (num_states, num_actions)
         state_values = self.state_values # (num_states)
-        action_to_outcome = self.env.action_to_outcome_np # (num_states, num_actions, num_outcomes)
+        action_to_outcome = self.env.action_to_outcome_np # (num_actions, num_outcomes)
         outcome_to_state = self.env.outcome_to_state_np # (num_states, num_outcomes)
 
         # Bellman equation is given by
@@ -97,8 +97,8 @@ class ValueIterationAgent(BaseDartAgent[StateType]):
         new_state_values[self.env.get_state(Termination.WIN)] = 0.0
 
         next_state_values = self.discount * torch.einsum(
-            'ijk,ik->ij',
-            action_to_outcome, # (num_states, num_actions, num_outcomes)
+            'jk,ik->ij',
+            action_to_outcome, # (num_actions, num_outcomes)
             new_state_values[outcome_to_state] # (num_states, num_outcomes)
         )
         next_state_values += step_cost  # (num_states, num_actions)
@@ -135,25 +135,25 @@ class PolicyIterationAgent(BaseDartAgent[StateType]):
         delta = 0
         step_cost = self.env.action_cost_np # (num_states, num_actions)
         state_values = self.state_values # (num_states)
-        action_to_outcome = self.env.action_to_outcome_np # (num_states, num_actions, num_outcomes)
+        action_to_outcome = self.env.action_to_outcome_np # (num_actions, num_outcomes)
         outcome_to_state = self.env.outcome_to_state_np # (num_states, num_outcomes)
 
         # Policy evaluation
         new_state_values = state_values.clone()
         new_state_values[self.env.get_state(Termination.WIN)] = 0.0
 
-        state_outcomes = action_to_outcome[torch.arange(self.env.num_states), self.policy] # (num_states, num_outcomes)
+        state_outcomes = action_to_outcome[self.policy] # (num_outcomes)
         next_state_values = self.discount * torch.einsum(
-            'ij,ij->i',
-            state_outcomes, # (num_states, num_outcomes)
+            'j,ij->i',
+            state_outcomes, # (num_outcomes)
             new_state_values[outcome_to_state] # (num_states, num_outcomes)
         )
         self.state_values = step_cost[torch.arange(self.env.num_states), self.policy] + next_state_values
 
         # Policy improvement
         next_state_values = self.discount * torch.einsum(
-            'ijk,ik->ij',
-            action_to_outcome, # (num_states, num_actions, num_outcomes)
+            'jk,ik->ij',
+            action_to_outcome, # (num_actions, num_outcomes)
             self.state_values[outcome_to_state]  # (num_states, num_outcomes)
         )
         next_state_values += step_cost  # (num_states, num_actions)
