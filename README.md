@@ -57,6 +57,31 @@ There are 3 levels of action spaces:
 |`middle`|![Middle](imgs/dart-middle.png)|529|
 |`complex`|![Complex](imgs/dart-complex.png)|921|
 
+One can customize action spaces in the config file:
+
+```yaml
+action_space:
+  - type: 'grid'
+    # x_ngrid x y_ngrid targets in a grid
+    x_start: -16
+    x_end: 16
+    x_ngrid: 7
+    y_start: -16
+    y_end: 16
+    y_ngrid: 7
+  - type: 'ring'
+    # (theta_end - theta_start) / theta_step targets on a ring
+    r: [100, 103, 106, 163, 166, 169, 179]
+    theta_step: 6
+  - type: 'ring'
+    r: [58, 135]
+    theta_step: 6
+  - type: 'dot'
+    # A specific point
+    x: 170
+    y: 170
+```
+
 ## Known Issues
 
 - The iteration loop uses full matrix to utilize matrix operations.
