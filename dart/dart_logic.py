@@ -5,7 +5,7 @@ import functools
 import itertools
 import logging
 import math
-from typing import Callable, Generic, Iterable, List, Tuple
+from typing import Callable, Generator, Generic, Iterable, List, Tuple
 
 import numpy as np
 import torch
@@ -254,6 +254,40 @@ class BaseDartEnvironment(BaseEnvironment[StateType | Termination, Action, Outco
         return torch.from_numpy(result).to(self.device)
         # return result
 
+    def replay_show(
+        self, display: DartDisplay, score: int, action: Action | int,
+        r: np.ndarray, theta: np.ndarray
+    ):
+        '''
+        Replay one step of the decision process
+        '''
+        # Show score
+        display.refresh_window()
+        display.plot_score(score)
+        yield
+
+        # Show action
+        if isinstance(action, int):
+            action = self.get_action(action)
+        mu = action.np
+        display.aim(mu, self.Sigma(action))
+        yield
+
+        # Show outcome
+        display.hit(r, theta)
+        yield
+
+    def replay(self, policy: torch.Tensor, display: DartDisplay):
+        coro = self.replay_step(policy, display)
+        next(coro)
+        def hook(event):
+            try:
+                next(coro)
+            except StopIteration:
+                display.fig.canvas.stop_event_loop()
+        self.hook = hook
+        display.add_click_hook(hook)
+
     # Functions not yet implemented
 
     @property
@@ -274,7 +308,7 @@ class BaseDartEnvironment(BaseEnvironment[StateType | Termination, Action, Outco
         ...
 
     @abc.abstractmethod
-    def replay(self, policy: torch.Tensor, display: DartDisplay):
+    def replay_step(self, policy: torch.Tensor, display: DartDisplay) -> Generator[None, None, None]:
         ...
 
 
@@ -377,41 +411,31 @@ class NoTurnDartEnvironment(BaseDartEnvironment[NoTurnState | Termination]):
         # Not reachable here
         assert False, f"Invalid state: {state}, outcome: {outcome}"
 
-    def replay(self, policy: torch.Tensor, display: DartDisplay):
+    def replay_step(self, policy: torch.Tensor, display: DartDisplay) -> Generator[None, None, None]:
         '''
         Replay the decision process.
         '''
         state = self.starting_state
         rounds = 0
         while not isinstance(state, Termination):
-            if state.s_score == 0:
-                rounds += 1
-                logging.info(f'Round {rounds} starts.')
-
-            logging.info(f'Current state: {state}')
-            display.plot_score(state.s_score)
-            display.pause()
+            rounds += 1
 
             action_id = int(policy[self.get_state(state)].item())
             action = self.get_action(action_id)
             mu = action.np
-            display.aim(mu, self.Sigma(action))
-            logging.info(f'Action: {action_id} - {action}')
-            display.pause()
-
             r, theta = map(
                 lambda x: np.array([[x]]),
                 sample_hit(mu, self.Sigma(action))
             )
+            yield from self.replay_show(
+                display, state.s_score, action, r, theta
+            )
+
             ratio, score = get_region(r, theta)
             outcome = Outcome((score * ratio).item(), ratio.item() == 2)
-            display.hit(r, theta)
-            logging.info(f'Observed Outcome: {outcome}')
-            display.pause()
 
             next_state = self.outcome_to_state(state, outcome)
             state = next_state
-            display.refresh_window()
 
 
 class TurnDartEnvironment(BaseDartEnvironment[TurnState | Termination]):
@@ -548,7 +572,7 @@ class TurnDartEnvironment(BaseDartEnvironment[TurnState | Termination]):
             )
         assert False, f"Invalid state: {state}, outcome: {outcome}"
 
-    def replay(self, policy: torch.Tensor, display: DartDisplay):
+    def replay_step(self, policy: torch.Tensor, display: DartDisplay) -> Generator[None, None, None]:
         '''
         Replay the decision process.
         '''
@@ -559,27 +583,22 @@ class TurnDartEnvironment(BaseDartEnvironment[TurnState | Termination]):
                 rounds += 1
                 logging.info(f'Round {rounds} starts.')
 
-            logging.info(f'Current state: {state}')
-            display.plot_score(state.c_score)
-            display.pause()
-
             action_id = int(policy[self.get_state(state)].item())
             action = self.get_action(action_id)
             mu = action.np
-            display.aim(mu, self.Sigma(action))
-            logging.info(f'Action: {action_id} - {action}')
-            display.pause()
+            r, theta = map(
+                lambda x: np.array([[x]]),
+                sample_hit(mu, self.Sigma(action))
+            )
+            yield from self.replay_show(
+                display, state.c_score, action, r, theta
+            )
 
-            r, theta = map(lambda x: np.array([[x]]), sample_hit(mu, self.Sigma(action)))
             ratio, score = get_region(r, theta)
             outcome = Outcome((score * ratio).item(), ratio.item() == 2)
-            display.hit(r, theta)
-            logging.info(f'Observed Outcome: {outcome}')
-            display.pause()
 
             next_state = self.outcome_to_state(state, outcome)
             state = next_state
-            display.refresh_window()
 
 
 def complex_action_space():

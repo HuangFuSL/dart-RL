@@ -195,6 +195,7 @@ def main(config: Config):
     if config.replay:
         display = DartDisplay()
         agent.replay(display)
+        display.ready()
 
 if __name__ == '__main__':
     config = Config.parse_args()

@@ -1,13 +1,17 @@
-from typing import List
+from typing import Callable, List
 
 import numpy as np
+import matplotlib
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from matplotlib.patches import Circle, Ellipse
+from matplotlib.backend_bases import Event
 from scipy.stats import chi2, multivariate_normal
 
 from .board import SECTOR_RADIUS, SECTOR_SCORES, DartResult, get_prob
+
+# matplotlib.use('WebAgg')
 
 def draw_dartboard_with_scores(ax: Axes):
     '''
@@ -151,6 +155,13 @@ def plot_hit_distribution(
     )
 
 
+def set_prob_ax(ax: Axes):
+    ax.set_xlabel('Probability')
+    ax.set_ylabel('Score')
+    ax.set_xlim(0, 1)
+    ax.set_ylim(-0.5, 0.5)
+    ax.set_yticks([])
+
 def plot_score_distribution(ax, score_probs: List[DartResult]):
     """
     绘制飞镖得分分布的堆积柱状图。
@@ -172,13 +183,7 @@ def plot_score_distribution(ax, score_probs: List[DartResult]):
         }
         ax.text(left + prob / 2, 0, **kwargs)
         left += prob
-
-    ax.set_title('Score Distribution')
-    ax.set_xlabel('Probability')
-    ax.set_ylabel('Score')
-    ax.set_xlim(0, 1)
-    ax.set_ylim(-0.5, 0.5)
-    ax.set_yticks([])
+    set_prob_ax(ax)
 
 
 def register_cursor(
@@ -221,16 +226,16 @@ class DartDisplay():
         self.ax_cmap = ax_cmap
         self.ax_prob = ax_prob
         self.ax_score = ax_score
+        self.hooked = False
 
         self.refresh_window()
-        self.fig.show()
-        plt.show(block=False)
 
     def refresh_window(self):
         self.ax_main.cla()
         self.ax_cmap.cla()
         self.ax_prob.cla()
         draw_dartboard_with_scores(self.ax_main)
+        set_prob_ax(self.ax_prob)
 
     def plot_score(self, score: int):
         """
@@ -247,7 +252,7 @@ class DartDisplay():
             0.5, 0.5, f'Score: {score}',
             ha='center', va='center', fontsize=15
         )
-        self.fig.canvas.draw_idle()
+        self.fig.canvas.draw()
 
     def aim(
         self, mu: np.ndarray, Sigma: np.ndarray | None,
@@ -261,7 +266,7 @@ class DartDisplay():
             mu, Sigma, x_range, y_range, step
         )
         plot_score_distribution(self.ax_prob, get_prob(mu, Sigma))
-        self.fig.canvas.draw_idle()
+        self.fig.canvas.draw()
 
     def hit(self, r, theta):
         mu = np.array([
@@ -270,7 +275,17 @@ class DartDisplay():
         self.ax_main.scatter(
             *mu, color='red', s=50, marker='x', zorder=99
         )
-        self.fig.canvas.draw_idle()
+        self.fig.canvas.draw()
 
-    def pause(self):
-        input('Press Enter to Continue...')
+    def add_click_hook(self, hook: Callable[[Event], None]):
+        self.hooked = True
+        self.fig.canvas.mpl_connect('button_press_event', hook)
+
+    def ready(self):
+        self.fig.show()
+        if self.hooked:
+            plt.show(block=False)
+            self.fig.canvas.start_event_loop(0) # Stop is controlled by hook
+            plt.close(self.fig)
+        else:
+            plt.show(block=True)
