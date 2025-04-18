@@ -557,12 +557,12 @@ class TurnDartEnvironment(BaseDartEnvironment[TurnState | Termination]):
         ):
             return TurnState(state.s_score, state.s_score, 0)
 
-        if state.c_score > score and state.throws < 2:  # Within the round
+        if state.c_score > score and state.throws < self.num_throws - 1:  # Within the round
             return TurnState(
                 state.s_score, state.c_score - score, state.throws + 1
             )
 
-        if state.c_score > score and state.throws == 2:  # New round
+        if state.c_score > score and state.throws == self.num_throws - 1:  # New round
             if state.c_score - score == 1:
                 # Bust
                 return TurnState(state.s_score, state.s_score, 0)
