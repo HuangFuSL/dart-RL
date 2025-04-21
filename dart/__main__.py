@@ -85,7 +85,7 @@ class Config():
                 result.device = 'cuda'
             else:
                 try:
-                    if torch.mps.is_available():
+                    if torch.backends.mps.is_available():
                         result.device = 'mps'
                     else:
                         result.device = 'cpu'
@@ -152,7 +152,7 @@ class Config():
         if not torch.cuda.is_available() and self.device == 'cuda':
             raise ValueError('CUDA is not available')
         try:
-            if not torch.mps.is_available() and self.device == 'mps':
+            if not torch.backends.mps.is_available() and self.device == 'mps':
                 raise ValueError('MPS is not available')
         except AttributeError:
             if self.device == 'mps':
